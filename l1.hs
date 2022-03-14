@@ -1,3 +1,4 @@
+import Data.Char
 import Data.Maybe
 
 incAll :: [[Int]] -> [[Int]]
@@ -56,3 +57,34 @@ indexOf c s = foldr (\(x, i) mi -> if x == c then Just i else mi) Nothing $ zip 
 positions :: Char -> String -> [Int]
 -- positions :: (Eq a1, Num a2, Enum a2) => a1 -> [a1] -> [a2]
 positions c s = foldr (\(x, i) mi -> if x == c then i : mi else mi) [] $ zip s [0 ..]
+
+showInt :: Int -> String
+showInt 0 = "0"
+showInt n
+  | n < 0 = "-" ++ showInt (- n)
+  | otherwise = go "" n
+  where
+    go acc 0 = acc
+    go acc n = go (lastLetter n : acc) (n `div` 10)
+    lastLetter n = chr (n `mod` 10 + ord '0')
+
+showIntLst :: [Int] -> String
+showIntLst l = "[" ++ go l ++ "]"
+  where
+    go [] = ""
+    go [x] = showInt x
+    go (x : xs) = showInt x ++ (", " ++ go xs)
+
+showLst :: (t -> String) -> [t] -> String
+showLst how l = "[" ++ go l ++ "]"
+  where
+    go [] = ""
+    go [x] = how x
+    go (x : xs) = how x ++ (", " ++ go xs)
+
+splitByN :: Int -> String -> String
+splitByN n = unlines . concatMap (\v -> if null v then [[]] else go v) . lines
+  where
+    go :: [a] -> [[a]]
+    go [] = []
+    go l = take n l : go (drop n l)
