@@ -1,3 +1,5 @@
+import Data.Maybe
+
 incAll :: [[Int]] -> [[Int]]
 incAll = map (map (+ 1))
 
@@ -36,3 +38,21 @@ fib n = fiba n 0 1
   where
     fiba 0 a1 _ = a1
     fiba n a1 a2 = fiba (n -1) a2 (a1 + a2)
+
+pierwsze :: [Int]
+pierwsze = go [2 ..]
+  where
+    go :: [Int] -> [Int]
+    go (x : xs) = x : go (filter (\y -> y `mod` x /= 0) xs)
+    go [] = []
+
+-- >>> take 10 pierwsze
+-- [2,3,5,7,11,13,17,19,23,29]
+
+indexOf :: Char -> String -> Maybe Int
+-- indexOf :: (Eq a1, Num a2, Enum a2) => a1 -> [a1] -> Maybe a2
+indexOf c s = foldr (\(x, i) mi -> if x == c then Just i else mi) Nothing $ zip s [0 ..]
+
+positions :: Char -> String -> [Int]
+-- positions :: (Eq a1, Num a2, Enum a2) => a1 -> [a1] -> [a2]
+positions c s = foldr (\(x, i) mi -> if x == c then i : mi else mi) [] $ zip s [0 ..]
