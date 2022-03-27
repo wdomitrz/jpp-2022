@@ -8,6 +8,7 @@ import Data.Time.Format.ISO8601 (yearFormat)
 import GHC.IO (unsafePerformIO)
 import System.Environment (getArgs)
 import System.IO (getLine)
+import Text.Read (readEither)
 
 -- Zadanie 2.
 -- a.
@@ -189,3 +190,32 @@ convert s = str
 
 -- >>> convert "12a3z1n23"
 -- "Error at position 5: z is not a hex digit"
+
+-- Zadanie 1.
+
+swapEither :: Either b a -> Either a b
+swapEither (Left x) = Right x
+swapEither (Right x) = Left x
+
+-- | readInts2
+-- >>> readInts2 "1 23 456 abc 9"
+-- Left "Not a number: abc"
+-- >>> readInts2' "1 23 456 abc 9"
+-- Left "Not a number: abc"
+readInts2 :: String -> Either String [Int]
+readInts2 = mapM go . words
+  where
+    go w = swapEither $ swapEither (readEither w) >> return ("Not a number: " ++ w)
+
+-- >>> readInts2 "1 23 456 abc 9"
+-- Left "Not a number: abc"
+
+sumInts :: String -> String
+sumInts s = either id id $ do
+  ints <- readInts2 s
+  return $ show $ sum ints
+
+-- >>> sumInts "1 23 456 abc 9"
+-- >>> sumInts "1 2 3"
+-- "Not a number: abc"
+-- "6"
