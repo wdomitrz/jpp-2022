@@ -108,16 +108,49 @@ renumberTreeFrom (Node _ l r) = do
 -- Node 2 (Node 1 (Node 0 Empty Empty) Empty) (Node 3 Empty Empty)
 data EBool = Eq Exp Exp | Le Exp Exp | T | F | Not EBool
 
-evalBool :: EBool -> Bool
-evalBool T = True
-evalBool F = False
-evalBool (Eq e1 e2) = evalExp e1 == evalExp e2
-evalBool (Le e1 e2) = evalExp e1 <= evalExp e2
-evalBool (Not b) = not $ evalBool b
+evalBoolWith :: MonadReader Env m => EBool -> m Bool
+evalBoolWith T = return True
+evalBoolWith F = return False
+evalBoolWith (Eq e1 e2) = evalBoolCompareWith (==) e1 e2
+evalBoolWith (Le e1 e2) = evalBoolCompareWith (<=) e1 e2
+evalBoolWith (Not b) = not <$> evalBoolWith b
+
+evalBoolCompareWith :: MonadReader Env m => (Int -> Int -> b) -> Exp -> Exp -> m b
+evalBoolCompareWith cmp e1 e2 = do
+  v1 <- evalExpWith e1
+  v2 <- evalExpWith e2
+  return $ v1 `cmp` v2
 
 data Stmt
   = Skip
   | Assign Var Exp
   | Sequential Stmt Stmt
   | If EBool Stmt Stmt
-  | While EBool Stmt Stmt
+  | While EBool Stmt
+
+execStmt :: Stmt -> IO ()
+execStmt s = print $ execState (execStmtWith s) empty
+
+execStmtWith :: MonadState Env m => Stmt -> m ()
+execStmtWith Skip = return ()
+execStmtWith (Assign v e) = do
+  x <- gets $ runReader (evalExpWith e)
+  modify (insert v x)
+execStmtWith (Sequential s1 s2) = do
+  execStmtWith s1
+  execStmtWith s2
+execStmtWith (If b s1 s2) = do
+  vb <- gets $ runReader (evalBoolWith b)
+  if vb
+    then execStmtWith s1
+    else execStmtWith s2
+execStmtWith (While b s) =
+  execStmtWith (If b (Sequential s (While b s)) Skip)
+
+-- execStmtWith (While b s) = do
+--   vb <- gets $ runReader (evalBoolWith b)
+--   when vb $ do
+--     execStmtWith s
+--     execStmtWith (While b s)
+
+-- execState (execStmtWith s) env
