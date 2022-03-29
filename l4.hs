@@ -3,7 +3,8 @@
 -- Jako ciekawostka, bo było pytanie na zajęciach:
 -- http://pointfree.io/
 
-import Control.Monad.Reader (MonadReader (ask), asks, runReader)
+import Control.Monad.Reader (MonadReader (ask), asks, local, runReader)
+import Control.Monad.State
 import Data.Map
 
 allPairs :: [a] -> [a] -> [[a]]
@@ -44,6 +45,17 @@ renumberFrom (Node _ l r) = do
   let rn = runReader (renumberFrom r) (x + 1)
   return $ Node x ln rn
 
+renumberFrom' :: MonadReader Int m => Tree a -> m (Tree Int)
+renumberFrom' Empty = return Empty
+renumberFrom' (Node _ l r) = do
+  x <- ask
+  ln <- local (+ 1) (renumberFrom' l)
+  rn <- local (+ 1) (renumberFrom' r)
+  return $ Node x ln rn
+
+-- >>> renumberFrom' (Node Nothing (Node Nothing (Node Nothing Empty Empty) (Empty)) (Node Nothing Empty Empty)) 0
+-- Node 0 (Node 1 (Node 2 Empty Empty) Empty) (Node 1 Empty Empty)
+
 type Var = String
 
 data Exp
@@ -73,3 +85,39 @@ evalExpWith (ELet var e1 e2) = do
   -- let var = e1 in e2
   v1 <- evalExpWith e1
   asks (runReader (evalExpWith e2) . insert var v1)
+
+evalExp :: Exp -> Int
+evalExp e = runReader (evalExpWith e) (Data.Map.empty)
+
+renumberTree :: Tree a -> Tree Int
+renumberTree t = evalState (renumberTreeFrom t) 0
+
+-- get = state (\s -> (s, s))
+-- put s = state (\_ -> ((), s))
+
+renumberTreeFrom :: MonadState Int m => Tree a -> m (Tree Int)
+renumberTreeFrom Empty = return Empty
+renumberTreeFrom (Node _ l r) = do
+  vl <- renumberTreeFrom l
+  x <- get
+  put (x + 1)
+  vr <- renumberTreeFrom r
+  return $ Node x vl vr
+
+-- >>> renumberTree (Node Nothing (Node Nothing (Node Nothing Empty Empty) (Empty)) (Node Nothing Empty Empty))
+-- Node 2 (Node 1 (Node 0 Empty Empty) Empty) (Node 3 Empty Empty)
+data EBool = Eq Exp Exp | Le Exp Exp | T | F | Not EBool
+
+evalBool :: EBool -> Bool
+evalBool T = True
+evalBool F = False
+evalBool (Eq e1 e2) = evalExp e1 == evalExp e2
+evalBool (Le e1 e2) = evalExp e1 <= evalExp e2
+evalBool (Not b) = not $ evalBool b
+
+data Stmt
+  = Skip
+  | Assign Var Exp
+  | Sequential Stmt Stmt
+  | If EBool Stmt Stmt
+  | While EBool Stmt Stmt
